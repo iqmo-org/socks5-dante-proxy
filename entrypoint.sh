@@ -24,6 +24,29 @@ Parameters:
 '
 
 case "$1" in
+    'add-user-start')
+        USER="$2"
+        PASS=$(echo "$3" | xargs)
+        if [ -z "$PASS" ]; then
+            PASS=$(openssl rand -base64 16)
+        fi
+
+        adduser --quiet --system --no-create-home "$USER"
+        echo "$USER:$PASS" | chpasswd
+
+        URL="http://ifconfig.co"
+        HOST=$(curl -s "$URL")
+
+        echo 'SOCKS5 connection parameters:'
+        echo "- Server:   $HOST:1080"
+        echo "- Username: $USER"
+        echo "- Password: $PASS"
+        echo
+        echo 'Test it using the following command:'
+        echo "curl --socks5 $USER:$PASS@$HOST:1080 -L $URL"
+
+        danted -N "$WORKERS" -f "$CONFIG"
+        ;;
     'add-user')
         USER="$2"
         PASS=$(echo "$3" | xargs)
