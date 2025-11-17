@@ -16,14 +16,14 @@ Parameters:
                             [default: random or ENV PASSWORD]
 '
 
-function adduserFn {
+adduserFn () {
     
     USER="$1"
     if [ -z "$USER" ]; then
         USER="$USERNAME"
         if [ -z "$USER" ]; then
             echo "No user"
-            return 1
+            exit 1
         else    
             echo "Using username from env $USER"
         fi
@@ -56,27 +56,19 @@ function adduserFn {
     echo
     echo 'Test it using the following command:'
     echo "curl --socks5 $USER:****@$HOST:1080 -L <URL>"
+    
 }
 
 
 case "$1" in
     'add-user-start')
-        echo "Calling adduserFn"
-
         adduserFn $2 $3
-        if [ $? -ne 0 ]; then
-            echo "Adding user failed"
-            exit 1
-        fi
 
         danted -N "$WORKERS" -f "$CONFIG"
         ;;
     'add-user')
         adduserFn $2 $3
-        if [ $? -ne 0 ]; then
-            echo "Adding user failed"
-            exit 1
-        fi
+        
         ;;
     'del-user')
         deluser --quiet --system "$2" 2> /dev/null
