@@ -16,7 +16,7 @@ Parameters:
                             [default: random or ENV PASSWORD]
 '
 
-function adduserFn(){
+function adduserFn {
     
     USER="$1"
     if [ -z "$USER" ]; then
