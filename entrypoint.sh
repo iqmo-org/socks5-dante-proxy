@@ -1,15 +1,6 @@
 #!/bin/sh
-
-_strip_name() {
-    echo "$1" | tr '@&+.:' '-' | tr -d '=!%^#$\/()[]{}|;<>, ' | xargs
-}
-
-set -- "$1" "$(_strip_name "$2")" "$3"
-if [ -z "$2" ]; then
-    set -- "$1" 'socks' "$3"
-fi
-
 # shellcheck disable=SC2016
+
 HELP='Usage: /entrypoint.sh [COMMAND [PARAMS..]]
 
 Commands:
@@ -20,53 +11,72 @@ Commands:
 
 Parameters:
     NAME                    A username
-                            [default: "socks"]
+                            [default: "socks" or ENV USERNAME]
+    PASS                    A password
+                            [default: random or ENV PASSWORD]
 '
+
+function adduserFn(){
+    
+    USER="$1"
+    if [ -z "$USER" ]; then
+        USER="$USERNAME"
+        if [ -z "$USER" ]; then
+            echo "No user"
+            return 1
+        else    
+            echo "Using username from env $USER"
+        fi
+    else
+        echo "Using username from arg $USER"
+    fi
+    
+
+    PASS=$(echo "$2" | xargs)
+    if [ -z "$PASS" ]; then
+        PASS="$PASSWORD"
+        if [ -z "$PASS" ]; then
+            PASS=$(openssl rand -base64 16)
+            echo "Using random password from $PASS"
+        else
+            echo "Using password from env ****"
+        fi
+    else
+        echo "Using password from arg"
+    fi
+    
+    echo "Adding user $USER"
+    adduser --quiet --system --no-create-home "$USER"
+    echo "$USER:$PASS" | chpasswd
+
+    echo 'SOCKS5 connection parameters:'
+    echo "- Server:   HOST:1080"
+    echo "- Username: $USER"
+    echo "- Password: ****"
+    echo
+    echo 'Test it using the following command:'
+    echo "curl --socks5 $USER:****@$HOST:1080 -L <URL>"
+}
+
 
 case "$1" in
     'add-user-start')
-        USER="$2"
-        PASS=$(echo "$3" | xargs)
-        if [ -z "$PASS" ]; then
-            PASS=$(openssl rand -base64 16)
+        echo "Calling adduserFn"
+
+        adduserFn $2 $3
+        if [ $? -ne 0 ]; then
+            echo "Adding user failed"
+            exit 1
         fi
-
-        adduser --quiet --system --no-create-home "$USER"
-        echo "$USER:$PASS" | chpasswd
-
-        URL="http://ifconfig.co"
-        HOST=$(curl -s "$URL")
-
-        echo 'SOCKS5 connection parameters:'
-        echo "- Server:   $HOST:1080"
-        echo "- Username: $USER"
-        echo "- Password: $PASS"
-        echo
-        echo 'Test it using the following command:'
-        echo "curl --socks5 $USER:$PASS@$HOST:1080 -L $URL"
 
         danted -N "$WORKERS" -f "$CONFIG"
         ;;
     'add-user')
-        USER="$2"
-        PASS=$(echo "$3" | xargs)
-        if [ -z "$PASS" ]; then
-            PASS=$(openssl rand -base64 16)
+        adduserFn $2 $3
+        if [ $? -ne 0 ]; then
+            echo "Adding user failed"
+            exit 1
         fi
-
-        adduser --quiet --system --no-create-home "$USER"
-        echo "$USER:$PASS" | chpasswd
-
-        URL="http://ifconfig.co"
-        HOST=$(curl -s "$URL")
-
-        echo 'SOCKS5 connection parameters:'
-        echo "- Server:   $HOST:1080"
-        echo "- Username: $USER"
-        echo "- Password: $PASS"
-        echo
-        echo 'Test it using the following command:'
-        echo "curl --socks5 $USER:$PASS@$HOST:1080 -L $URL"
         ;;
     'del-user')
         deluser --quiet --system "$2" 2> /dev/null
